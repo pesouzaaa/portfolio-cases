@@ -1,0 +1,111 @@
+string publicarCase(String titulo, String cliente, String descricao)
+{
+token = "SEU-TOKEN";
+cabecalhos = Map();
+cabecalhos.put("Authorization","Bearer " + token);
+cabecalhos.put("Accept","application/vnd.github+json");
+cabecalhos.put("User-Agent","zoho-deluge-portfolio");
+cabecalhos.put("Content-Type","application/json");
+repo = "https://api.github.com/repos/pesouzaaa/portfolio-cases";
+try 
+{
+	refResposta = invokeurl
+	[
+		url :repo + "/git/ref/heads/main"
+		type :GET
+		headers:cabecalhos
+	];
+	commitSha = refResposta.get("object").get("sha");
+	info "Commit atual: " + commitSha;
+	commitResposta = invokeurl
+	[
+		url :repo + "/git/commits/" + commitSha
+		type :GET
+		headers:cabecalhos
+	];
+	treeSha = commitResposta.get("tree").get("sha");
+	info "Arvore atual: " + treeSha;
+	quebra = zoho.encryption.urlDecode("%0A");
+	linhas = List();
+	linhas.add("# " + titulo);
+	linhas.add("");
+	linhas.add("**Cliente:** " + cliente);
+	linhas.add("");
+	linhas.add("## O que foi feito");
+	linhas.add("");
+	linhas.add(descricao);
+	conteudo = linhas.toString(quebra);
+	corpoBlob = Map();
+	corpoBlob.put("content",conteudo);
+	corpoBlob.put("encoding","utf-8");
+	urlBlob = repo + "/git/blobs";
+	info "URL: " + urlBlob;
+	blobResposta = invokeurl
+	[
+		url :urlBlob
+		type :POST
+		parameters:corpoBlob.toString()
+		headers:cabecalhos
+	];
+	info blobResposta;
+	blobSha = blobResposta.get("sha");
+	info "Blob criado: " + blobSha;
+	arquivo = Map();
+	nomeArquivo = titulo.toLowerCase().replaceAll(" ","-");
+	arquivo.put("path","cases/" + nomeArquivo + ".md");
+	arquivo.put("mode","100644");
+	arquivo.put("type","blob");
+	arquivo.put("sha",blobSha);
+	if(blobSha == null)
+	{
+		info "Falha ao criar blob: " + blobResposta;
+		return "erro";
+	}
+	listaArquivos = List();
+	listaArquivos.add(arquivo);
+	corpoTree = Map();
+	corpoTree.put("base_tree",treeSha);
+	corpoTree.put("tree",listaArquivos);
+	treeResposta = invokeurl
+	[
+		url :repo + "/git/trees"
+		type :POST
+		parameters:corpoTree.toString()
+		headers:cabecalhos
+	];
+	novaTreeSha = treeResposta.get("sha");
+	info "Nova arvore: " + novaTreeSha;
+	pais = List();
+	pais.add(commitSha);
+	corpoCommit = Map();
+	corpoCommit.put("message","Adiciona case: " + titulo);
+	corpoCommit.put("tree",novaTreeSha);
+	corpoCommit.put("parents",pais);
+	commitNovo = invokeurl
+	[
+		url :repo + "/git/commits"
+		type :POST
+		parameters:corpoCommit.toString()
+		headers:cabecalhos
+	];
+	novoCommitSha = commitNovo.get("sha");
+	info "Novo commit: " + novoCommitSha;
+	corpoRef = Map();
+	corpoRef.put("sha",novoCommitSha);
+	corpoRef.put("force",false);
+	refAtualizada = invokeurl
+	[
+		url :repo + "/git/refs/heads/main"
+		type :PATCH
+		parameters:corpoRef.toString()
+		headers:cabecalhos
+	];
+	info refAtualizada;
+}
+catch (e)
+{
+	info "Erro na linha" + e.lineNo + ": " + e.message;
+	return "erro";
+}
+return "ok";
+}
