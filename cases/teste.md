@@ -1,0 +1,1 @@
+# Case de Teste\n\nPrimeiro arquivo publicado via Deluge.
