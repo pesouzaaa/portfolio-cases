@@ -1,1 +1,3 @@
-# Case de Teste\n\nPrimeiro arquivo publicado via Deluge.
+# Case de Teste
+
+Primeiro arquivo publicado via Deluge.
